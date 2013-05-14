@@ -17,7 +17,7 @@
         "doctrine/orm": "~2.2,>=2.2.3"
     },
     "minimum-stability": "dev",
-    "target-dir": "Theodo/Bundle/FrameworkBundle",
+    "target-dir": "Theodo/Bundle/FrameworkExtraBundle",
     "autoload": {
         "psr-0": {
             "Theodo\\Bundle\\FrameworkExtraBundle": ""
