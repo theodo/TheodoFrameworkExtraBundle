@@ -122,6 +122,7 @@ class WebTestCase extends BaseWebTestCase
             );
         }
 
+        /** @var \Doctrine\ORM\EntityManager $em */
         $em = static::$kernel->getContainer()->get('doctrine.orm.entity_manager');
 
         $purger = new ORMPurger($em);
