@@ -18,6 +18,16 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase as BaseWebTestCase;
 class WebTestCase extends BaseWebTestCase
 {
     /**
+     * Creates Kernel if undefined
+     */
+    private static function buildKernel()
+    {
+        if (!static::$kernel instanceof \Symfony\Component\HttpKernel\KernelInterface) {
+            static::$kernel = static::createKernel();
+        }
+    }
+
+    /**
      * {@inheritdoc}
      */
     protected static function createClient(array $options = array(), array $server = array())
@@ -32,44 +42,48 @@ class WebTestCase extends BaseWebTestCase
     /**
      * Generates the schema to use on the test environment.
      *
-     * @throws \Doctrine\DBAL\Schema\SchemaException
+     * @param bool $purgeOnly When set to true, only purge the database, else drop it and recreate schema.
+     *
+     * @throws SchemaException
      */
-    protected static function generateSchema()
+    protected static function generateSchema($purgeOnly=false)
     {
-        if (!static::$kernel instanceof \Symfony\Component\HttpKernel\KernelInterface) {
-            static::$kernel = static::createKernel();
-        }
+        static::buildKernel();
 
         /**
-         * @var \Doctrine\ORM\EntityManager
+         * @var \Doctrine\ORM\EntityManager $em
          */
         $em = static::$kernel->getContainer()->get('doctrine.orm.entity_manager');
 
-        // Get the metadata of the application to create the schema.
-        $metadata = $em->getMetadataFactory()->getAllMetadata();
-
-        if (!empty($metadata)) {
-            // Create SchemaTool
-            $tool = new SchemaTool($em);
-            $tool->dropDatabase();
-            $tool->createSchema($metadata);
+        if ($purgeOnly) {
+            // Purge and truncate (reset the id to start from 1) the database
+            $purger = new ORMPurger($em);
+            $purger->getPurgeMode(ORMPurger::PURGE_MODE_TRUNCATE);
+            $purger->purge();
         } else {
-            throw new SchemaException('No Metadata Classes to process.');
+            // Get the metadata of the application to create the schema.
+            $metadata = $em->getMetadataFactory()->getAllMetadata();
+
+            if (!empty($metadata)) {
+                // Create SchemaTool
+                $tool = new SchemaTool($em);
+                $tool->dropDatabase();
+                $tool->createSchema($metadata);
+            } else {
+                throw new SchemaException('No Metadata Classes to process.');
+            }
         }
     }
 
     /**
-     * Load some fixtures.
+     * If paths is null, get the fixtures from all bundles loaded with the kernel.
      *
      * @param null $paths
-     * @throws \InvalidArgumentException
+     *
+     * @return array
      */
-    protected static function loadFixtures($paths = null)
+    private static function getFixturesPaths($paths = null)
     {
-        if (!static::$kernel instanceof \Symfony\Component\HttpKernel\KernelInterface) {
-            static::$kernel = static::createKernel();
-        }
-
         if (null != $paths) {
             $paths = is_array($paths) ? $paths : array($paths);
         } else {
@@ -78,6 +92,22 @@ class WebTestCase extends BaseWebTestCase
                 $paths[] = $bundle->getPath().'/DataFixtures/ORM';
             }
         }
+
+        return $paths;
+    }
+
+    /**
+     * Load some fixtures.
+     *
+     * @param null $paths
+     *
+     * @throws \InvalidArgumentException
+     */
+    protected static function loadFixtures($paths = null)
+    {
+        static::buildKernel();
+
+        $paths = static::getFixturesPaths($paths);
 
         $loader = new DataFixturesLoader(static::$kernel->getContainer());
         foreach ($paths as $path) {
@@ -92,10 +122,31 @@ class WebTestCase extends BaseWebTestCase
             );
         }
 
+        /** @var \Doctrine\ORM\EntityManager $em */
         $em = static::$kernel->getContainer()->get('doctrine.orm.entity_manager');
 
         $purger = new ORMPurger($em);
         $executor = new ORMExecutor($em, $purger);
         $executor->execute($fixtures);
+    }
+
+    /**
+     * Load YAML fixtures built with AliceBundle.
+     *
+     * @param null $paths
+     */
+    protected static function loadAliceFixtures($paths = null)
+    {
+        static::buildKernel();
+
+        $paths = static::getFixturesPaths($paths);
+
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $em = static::$kernel->getContainer()->get('doctrine.orm.entity_manager');
+        /** @var $loader \Hautelook\AliceBundle\Alice\Loader */
+        $loader = static::$kernel->getContainer()->get('hautelook_alice.loader');
+        $loader->setObjectManager($em);
+        $loader->setProviders(array());
+        $loader->load($paths);
     }
 }
