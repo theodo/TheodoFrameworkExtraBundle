@@ -18,6 +18,16 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase as BaseWebTestCase;
 class WebTestCase extends BaseWebTestCase
 {
     /**
+     * Creates Kernel if undefined
+     */
+    private static function buildKernel()
+    {
+        if (!static::$kernel instanceof \Symfony\Component\HttpKernel\KernelInterface) {
+            static::$kernel = static::createKernel();
+        }
+    }
+
+    /**
      * {@inheritdoc}
      */
     protected static function createClient(array $options = array(), array $server = array())
@@ -38,9 +48,7 @@ class WebTestCase extends BaseWebTestCase
      */
     protected static function generateSchema($purgeOnly=false)
     {
-        if (!static::$kernel instanceof \Symfony\Component\HttpKernel\KernelInterface) {
-            static::$kernel = static::createKernel();
-        }
+        static::buildKernel();
 
         /**
          * @var \Doctrine\ORM\EntityManager $em
@@ -71,13 +79,12 @@ class WebTestCase extends BaseWebTestCase
      * Load some fixtures.
      *
      * @param null $paths
+     *
      * @throws \InvalidArgumentException
      */
     protected static function loadFixtures($paths = null)
     {
-        if (!static::$kernel instanceof \Symfony\Component\HttpKernel\KernelInterface) {
-            static::$kernel = static::createKernel();
-        }
+        static::buildKernel();
 
         if (null != $paths) {
             $paths = is_array($paths) ? $paths : array($paths);
