@@ -76,6 +76,27 @@ class WebTestCase extends BaseWebTestCase
     }
 
     /**
+     * If paths is null, get the fixtures from all bundles loaded with the kernel.
+     *
+     * @param null $paths
+     *
+     * @return array
+     */
+    private static function getFixturesPaths($paths = null)
+    {
+        if (null != $paths) {
+            $paths = is_array($paths) ? $paths : array($paths);
+        } else {
+            $paths = array();
+            foreach (static::$kernel->getBundles() as $bundle) {
+                $paths[] = $bundle->getPath().'/DataFixtures/ORM';
+            }
+        }
+
+        return $paths;
+    }
+
+    /**
      * Load some fixtures.
      *
      * @param null $paths
@@ -86,14 +107,7 @@ class WebTestCase extends BaseWebTestCase
     {
         static::buildKernel();
 
-        if (null != $paths) {
-            $paths = is_array($paths) ? $paths : array($paths);
-        } else {
-            $paths = array();
-            foreach (static::$kernel->getBundles() as $bundle) {
-                $paths[] = $bundle->getPath().'/DataFixtures/ORM';
-            }
-        }
+        $paths = static::getFixturesPaths($paths);
 
         $loader = new DataFixturesLoader(static::$kernel->getContainer());
         foreach ($paths as $path) {
