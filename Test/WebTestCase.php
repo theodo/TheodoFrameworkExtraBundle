@@ -32,29 +32,38 @@ class WebTestCase extends BaseWebTestCase
     /**
      * Generates the schema to use on the test environment.
      *
-     * @throws \Doctrine\DBAL\Schema\SchemaException
+     * @param bool $purgeOnly When set to true, only purge the database, else drop it and recreate schema.
+     *
+     * @throws SchemaException
      */
-    protected static function generateSchema()
+    protected static function generateSchema($purgeOnly=false)
     {
         if (!static::$kernel instanceof \Symfony\Component\HttpKernel\KernelInterface) {
             static::$kernel = static::createKernel();
         }
 
         /**
-         * @var \Doctrine\ORM\EntityManager
+         * @var \Doctrine\ORM\EntityManager $em
          */
         $em = static::$kernel->getContainer()->get('doctrine.orm.entity_manager');
 
-        // Get the metadata of the application to create the schema.
-        $metadata = $em->getMetadataFactory()->getAllMetadata();
-
-        if (!empty($metadata)) {
-            // Create SchemaTool
-            $tool = new SchemaTool($em);
-            $tool->dropDatabase();
-            $tool->createSchema($metadata);
+        if ($purgeOnly) {
+            // Purge and truncate (reset the id to start from 1) the database
+            $purger = new ORMPurger($em);
+            $purger->getPurgeMode(ORMPurger::PURGE_MODE_TRUNCATE);
+            $purger->purge();
         } else {
-            throw new SchemaException('No Metadata Classes to process.');
+            // Get the metadata of the application to create the schema.
+            $metadata = $em->getMetadataFactory()->getAllMetadata();
+
+            if (!empty($metadata)) {
+                // Create SchemaTool
+                $tool = new SchemaTool($em);
+                $tool->dropDatabase();
+                $tool->createSchema($metadata);
+            } else {
+                throw new SchemaException('No Metadata Classes to process.');
+            }
         }
     }
 
