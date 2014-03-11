@@ -129,4 +129,24 @@ class WebTestCase extends BaseWebTestCase
         $executor = new ORMExecutor($em, $purger);
         $executor->execute($fixtures);
     }
+
+    /**
+     * Load YAML fixtures built with AliceBundle.
+     *
+     * @param null $paths
+     */
+    protected static function loadAliceFixtures($paths = null)
+    {
+        static::buildKernel();
+
+        $paths = static::getFixturesPaths($paths);
+
+        /** @var \Doctrine\ORM\EntityManager $em */
+        $em = static::$kernel->getContainer()->get('doctrine.orm.entity_manager');
+        /** @var $loader \Hautelook\AliceBundle\Alice\Loader */
+        $loader = static::$kernel->getContainer()->get('hautelook_alice.loader');
+        $loader->setObjectManager($em);
+        $loader->setProviders(array());
+        $loader->load($paths);
+    }
 }
